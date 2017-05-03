@@ -1,0 +1,75 @@
+close all;clear all;clc;
+
+im1=imread('..\Simulated Image\image3_1.jpg');
+% figure, imshow(im1);
+im1=rgb2gray(im1);
+
+media_filter = uint8(medfilt2(double(im1)));
+% figure, imshow(media_filter);
+media_filter(300,300)
+
+[row, col] = size(im1);
+
+f = fopen('tmp.pgm', 'w');
+fprintf(f, 'P5\n%d\n%d\n255\n', col, row);
+fwrite(f,im1','uint8');
+
+if isunix
+    command = '!./sift ';
+else
+    command = '!siftWin32 ';
+end
+command = [command ' <tmp.pgm >tmp.key']; %延长字符串 command = '!siftWin32 <tmp.pgm>tmp.key'
+eval(command)  %eval()函数的功能就是将括号内的字符串视为语句并运行
+
+g=fopen('tmp.key','r');
+if g==-1
+    error('Could not open file tmp.key.');
+end
+[header,cnt]=fscanf(g,'%d',[1 2]);
+if cnt~=2
+    error('Invalid keypoint file beginning.');
+end
+
+num=header(1); %关键点个数
+len=header(2); %关键点维度长度（一般是128维）
+if len~=128
+    error('Keypoint descriptor length invalid (should be 128).');
+end
+
+% Creates the two output matrices (use known size for efficiency)
+loc=double(zeros(num,4));  %创建num行4列的全为0的矩阵
+des=double(zeros(num,128));
+for k=1:num
+    [vector,cnt]=fscanf(g, '%f %f %f %f', [1 4]); 
+    if cnt~=4
+            error('Invalid keypoint file format');
+    end
+    
+    loc(k,:)=vector(1,:); %loc的第k行为vector的第1行
+     [descrip, count] = fscanf(g, '%d', [1 len]);
+    if (count ~= 128)
+        error('Invalid keypoint file value.');
+    end
+    descrip = descrip / sqrt(sum(descrip.^2));
+    des(k, :) = descrip(1, :);
+end
+
+
+
+fclose(g);
+for k=1:size(des,1)
+    des(k,:)=des(k,:)/sum(des(k,:));
+end
+
+delete tmp.key tmp.pgm
+
+
+% plot(loc1(:,2),loc1(:,1),'r*',loc2(:,2)+size(im1,2),loc2(:,1),'b*');
+a = [1 2;3 4];
+b = [5 6;7 8];
+plot(a, b, 'r*',b, a, 'b*');
+
+c = [a;b]
+sum(c.^2, 2)
+
